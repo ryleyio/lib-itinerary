@@ -54,49 +54,108 @@
   main {
     padding: 24px clamp(16px, 4vw, 48px) 120px;
   }
-  .stages {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-    gap: 16px;
-  }
-  .stage {
-    background: linear-gradient(180deg, rgba(255,255,255,0.025), rgba(255,255,255,0.005));
+
+  /* time-aligned grid view */
+  .day-view {
     border: 1px solid var(--line);
     border-radius: 14px;
-    padding: 16px;
-    backdrop-filter: blur(6px);
+    background: linear-gradient(180deg, rgba(255,255,255,0.025), rgba(255,255,255,0.005));
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
   }
-  .stage h2 {
-    margin: 0 0 12px 0; font-size: 13px; letter-spacing: 0.22em;
-    color: var(--accent); text-transform: uppercase;
+  .day-grid {
+    display: grid;
+    grid-template-columns: 56px repeat(var(--stages), minmax(160px, 1fr));
+    grid-template-rows: auto 1fr;
+    min-width: max-content;
   }
-  .set {
-    display: flex; align-items: flex-start; gap: 10px;
-    padding: 10px 8px; border-top: 1px dashed #1d1734;
-    cursor: pointer; border-radius: 8px;
-    transition: background .12s ease, transform .05s ease;
-    user-select: none;
+  .corner {
+    grid-column: 1; grid-row: 1;
+    position: sticky; left: 0; top: 0; z-index: 4;
+    background: linear-gradient(180deg, #1a1530, #14102a);
+    border-right: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
   }
-  .set:first-of-type { border-top: none; }
-  .set:hover { background: rgba(255,255,255,0.03); }
-  .set:active { transform: scale(0.99); }
-  .set .check {
-    flex: 0 0 18px; width: 18px; height: 18px; border-radius: 5px;
-    border: 1.5px solid #3a2f6a; margin-top: 2px;
-    display: flex; align-items: center; justify-content: center;
-    color: #07060d; font-weight: 900; font-size: 13px; line-height: 1;
+  .lane-header {
+    grid-row: 1;
+    position: sticky; top: 0; z-index: 2;
+    background: linear-gradient(180deg, #1a1530, #14102a);
+    border-right: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+    padding: 10px 10px;
+    font-size: 11px; letter-spacing: 0.22em; color: var(--accent);
+    text-transform: uppercase; text-align: center;
+    white-space: nowrap;
+    text-overflow: ellipsis; overflow: hidden;
   }
-  .set.picked .check {
-    background: linear-gradient(135deg, var(--accent), var(--accent2));
-    border-color: transparent;
+  .time-axis {
+    grid-column: 1; grid-row: 2;
+    position: sticky; left: 0; z-index: 3;
+    background: rgba(14, 11, 31, 0.92);
+    backdrop-filter: blur(4px);
+    border-right: 1px solid var(--line);
+    position: -webkit-sticky;
+    position: sticky;
   }
-  .set.picked .check::after { content: "✓"; }
-  .set .body { flex: 1 1 auto; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-  .set .artist { font-weight: 700; font-size: 15px; line-height: 1.25; word-break: break-word; }
-  .set .time { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
-  .set.picked { background: rgba(196, 168, 255, 0.08); }
-  .set.now { box-shadow: inset 0 0 0 1px rgba(196,168,255,0.25); }
-  .set.now .time::after { content: " • LIVE"; color: var(--accent); font-weight: 700; }
+  .time-label {
+    position: absolute; right: 8px;
+    transform: translateY(50%);
+    font-size: 10px; letter-spacing: 0.06em;
+    color: var(--muted); font-variant-numeric: tabular-nums;
+    pointer-events: none;
+  }
+  .lane-body {
+    grid-row: 2;
+    position: relative;
+    border-right: 1px solid var(--line);
+    /* horizontal hour gridlines via repeating gradient; size set inline */
+    background-image: repeating-linear-gradient(
+      to top,
+      transparent 0,
+      transparent calc(var(--hour-h) - 1px),
+      rgba(255,255,255,0.05) calc(var(--hour-h) - 1px),
+      rgba(255,255,255,0.05) var(--hour-h)
+    );
+  }
+  .block {
+    position: absolute; left: 6px; right: 6px;
+    padding: 6px 9px;
+    border-radius: 9px;
+    background: rgba(196,168,255,0.10);
+    border: 1px solid rgba(196,168,255,0.22);
+    cursor: pointer; overflow: hidden;
+    display: flex; flex-direction: column; gap: 2px;
+    transition: background .12s ease, transform .05s ease, border-color .12s ease;
+  }
+  .block:hover { background: rgba(196,168,255,0.18); }
+  .block:active { transform: scale(0.99); }
+  .block .artist {
+    font-weight: 700; font-size: 13px; line-height: 1.2;
+    color: var(--ink);
+    overflow: hidden; text-overflow: ellipsis;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  }
+  .block .time {
+    font-size: 10.5px; line-height: 1.1;
+    color: var(--muted); font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  .block.picked {
+    background: linear-gradient(135deg, rgba(196,168,255,0.45), rgba(255,154,209,0.35));
+    border-color: rgba(255,154,209,0.6);
+  }
+  .block.picked .artist { color: #fff; }
+  .block.picked .time { color: rgba(255,255,255,0.85); }
+  .block.now {
+    box-shadow: 0 0 0 1px rgba(196,168,255,0.55), 0 0 18px rgba(196,168,255,0.35);
+  }
+  .block.now::after {
+    content: "LIVE";
+    position: absolute; top: 4px; right: 6px;
+    font-size: 9px; font-weight: 800; letter-spacing: 0.1em;
+    color: var(--accent);
+  }
   .empty { color: var(--muted); padding: 24px; text-align: center; }
   kbd { background: #1a1530; border: 1px solid var(--line); border-radius: 6px; padding: 2px 6px; font-size: 11px; color: var(--muted); }
   footer { color: var(--muted); font-size: 12px; padding: 16px clamp(16px, 4vw, 48px) 32px; }
@@ -277,6 +336,25 @@ function fmtTime(iso) {
   return `${h}:${m.toString().padStart(2,'0')}${ap}`;
 }
 
+function floorToHour(ms) {
+  const d = new Date(ms);
+  d.setMinutes(0, 0, 0);
+  return d.getTime();
+}
+function ceilToHour(ms) {
+  const d = new Date(ms);
+  if (d.getMinutes() === 0 && d.getSeconds() === 0 && d.getMilliseconds() === 0) return d.getTime();
+  d.setMinutes(0, 0, 0);
+  return d.getTime() + 3600000;
+}
+function hourLabel(ms) {
+  const d = new Date(ms);
+  let h = d.getHours();
+  const ap = h >= 12 ? 'P' : 'A';
+  h = h % 12; if (h === 0) h = 12;
+  return `${h}${ap}`;
+}
+
 function render() {
   const day = DATA.dates[idx];
   document.getElementById('dateHeading').textContent = day.label;
@@ -290,6 +368,7 @@ function render() {
     dots.appendChild(el);
   });
 
+  // collect stages (preserve original order of first appearance)
   const stageOrder = [];
   const byStage = new Map();
   for (const s of day.sets) {
@@ -303,47 +382,105 @@ function render() {
     arr.sort((a, b) => new Date(a.start) - new Date(b.start));
   }
 
-  const now = new Date();
-  const stages = document.getElementById('stages');
-  stages.innerHTML = '';
-  for (const stageName of stageOrder) {
-    const col = document.createElement('section');
-    col.className = 'stage';
-    const h = document.createElement('h2');
-    h.textContent = stageName;
-    col.appendChild(h);
+  // time bounds for the day
+  let minStart = Infinity, maxEnd = -Infinity;
+  for (const s of day.sets) {
+    const st = new Date(s.start).getTime();
+    const et = new Date(s.end).getTime();
+    if (st < minStart) minStart = st;
+    if (et > maxEnd) maxEnd = et;
+  }
+  const dayStart = floorToHour(minStart);
+  const dayEnd = ceilToHour(maxEnd);
+  const totalMin = (dayEnd - dayStart) / 60000;
 
-    for (const s of byStage.get(stageName)) {
-      const start = new Date(s.start);
-      const end = new Date(s.end);
-      const live = now >= start && now < end;
-      const k = setKey(s);
-      const picked = picks.has(k);
-      const row = document.createElement('div');
-      row.className = 'set' + (live ? ' now' : '') + (picked ? ' picked' : '');
-      row.dataset.key = k;
+  // px scale (matches the festival graphic: bottom = earliest, top = latest)
+  const PX_PER_MIN = 1.3;
+  const HOUR_H = 60 * PX_PER_MIN;
+  const totalH = totalMin * PX_PER_MIN;
 
-      const check = document.createElement('div');
-      check.className = 'check';
-      row.appendChild(check);
+  // root
+  const root = document.getElementById('stages');
+  root.innerHTML = '';
+  root.className = '';
 
-      const body = document.createElement('div');
-      body.className = 'body';
+  const view = document.createElement('div');
+  view.className = 'day-view';
+
+  const grid = document.createElement('div');
+  grid.className = 'day-grid';
+  grid.style.setProperty('--stages', stageOrder.length);
+  grid.style.setProperty('--hour-h', HOUR_H + 'px');
+
+  // corner
+  const corner = document.createElement('div');
+  corner.className = 'corner';
+  grid.appendChild(corner);
+
+  // lane headers
+  stageOrder.forEach((name, i) => {
+    const lh = document.createElement('div');
+    lh.className = 'lane-header';
+    lh.style.gridColumn = String(i + 2);
+    lh.style.gridRow = '1';
+    lh.textContent = name;
+    grid.appendChild(lh);
+  });
+
+  // time axis
+  const axis = document.createElement('div');
+  axis.className = 'time-axis';
+  axis.style.height = totalH + 'px';
+  for (let t = dayStart; t <= dayEnd; t += 3600000) {
+    const minFromStart = (t - dayStart) / 60000;
+    const label = document.createElement('div');
+    label.className = 'time-label';
+    label.style.bottom = (minFromStart * PX_PER_MIN) + 'px';
+    label.textContent = hourLabel(t);
+    axis.appendChild(label);
+  }
+  grid.appendChild(axis);
+
+  // lane bodies + blocks
+  const now = Date.now();
+  stageOrder.forEach((name, i) => {
+    const lane = document.createElement('div');
+    lane.className = 'lane-body';
+    lane.style.gridColumn = String(i + 2);
+    lane.style.gridRow = '2';
+    lane.style.height = totalH + 'px';
+
+    for (const s of byStage.get(name)) {
+      const st = new Date(s.start).getTime();
+      const et = new Date(s.end).getTime();
+      const startMin = (st - dayStart) / 60000;
+      const durMin = (et - st) / 60000;
+
+      const block = document.createElement('div');
+      block.className = 'block';
+      block.style.bottom = (startMin * PX_PER_MIN) + 'px';
+      block.style.height = (durMin * PX_PER_MIN - 2) + 'px';
+
+      if (picks.has(setKey(s))) block.classList.add('picked');
+      if (now >= st && now < et) block.classList.add('now');
+
       const a = document.createElement('div');
       a.className = 'artist';
       a.textContent = s.artist;
       const t = document.createElement('div');
       t.className = 'time';
       t.textContent = `${fmtTime(s.start)} – ${fmtTime(s.end)}`;
-      body.appendChild(a);
-      body.appendChild(t);
-      row.appendChild(body);
+      block.appendChild(a);
+      block.appendChild(t);
 
-      row.addEventListener('click', () => togglePick(s, row));
-      col.appendChild(row);
+      block.addEventListener('click', () => togglePick(s, block));
+      lane.appendChild(block);
     }
-    stages.appendChild(col);
-  }
+    grid.appendChild(lane);
+  });
+
+  view.appendChild(grid);
+  root.appendChild(view);
 }
 
 function togglePick(s, row) {
