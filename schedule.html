@@ -1,0 +1,697 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>LIB 2026 — Schedule</title>
+<style>
+  :root {
+    --bg: #07060d;
+    --bg2: #0e0b1f;
+    --ink: #efe7ff;
+    --muted: #8b87a8;
+    --accent: #c4a8ff;
+    --accent2: #ff9ad1;
+    --line: #221d3a;
+    --chip: #1a1530;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background:
+    radial-gradient(1200px 600px at 20% -10%, #1a1340 0%, transparent 60%),
+    radial-gradient(1000px 700px at 110% 110%, #2a0f3a 0%, transparent 55%),
+    var(--bg);
+    color: var(--ink);
+    font-family: ui-sans-serif, system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+    min-height: 100vh;
+  }
+  header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 24px clamp(16px, 4vw, 48px);
+    gap: 16px; flex-wrap: wrap;
+    border-bottom: 1px solid var(--line);
+    background: linear-gradient(180deg, rgba(255,255,255,0.02), transparent);
+  }
+  .title { display: flex; flex-direction: column; gap: 4px; }
+  .title small { color: var(--muted); letter-spacing: 0.18em; text-transform: uppercase; font-size: 11px; }
+  .title h1 { margin: 0; font-size: clamp(22px, 3vw, 32px); letter-spacing: 0.04em; }
+  .nav { display: flex; align-items: center; gap: 8px; }
+  .nav button {
+    background: var(--chip); color: var(--ink); border: 1px solid var(--line);
+    padding: 10px 14px; border-radius: 999px; cursor: pointer; font-weight: 600;
+    transition: background .15s ease, transform .05s ease;
+  }
+  .nav button:hover { background: #25204a; }
+  .nav button:active { transform: translateY(1px); }
+  .nav .date-chip {
+    background: linear-gradient(180deg, #2a2152, #1c1640);
+    border: 1px solid #3a2f6a; padding: 10px 18px; border-radius: 999px;
+    font-weight: 700; letter-spacing: 0.04em; min-width: 220px; text-align: center;
+  }
+  .dots { display: flex; gap: 6px; margin-left: 8px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: #2a2348; }
+  .dot.active { background: var(--accent); box-shadow: 0 0 12px var(--accent); }
+
+  main {
+    padding: 24px clamp(16px, 4vw, 48px) 120px;
+  }
+  .stages {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 16px;
+  }
+  .stage {
+    background: linear-gradient(180deg, rgba(255,255,255,0.025), rgba(255,255,255,0.005));
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 16px;
+    backdrop-filter: blur(6px);
+  }
+  .stage h2 {
+    margin: 0 0 12px 0; font-size: 13px; letter-spacing: 0.22em;
+    color: var(--accent); text-transform: uppercase;
+  }
+  .set {
+    display: flex; align-items: flex-start; gap: 10px;
+    padding: 10px 8px; border-top: 1px dashed #1d1734;
+    cursor: pointer; border-radius: 8px;
+    transition: background .12s ease, transform .05s ease;
+    user-select: none;
+  }
+  .set:first-of-type { border-top: none; }
+  .set:hover { background: rgba(255,255,255,0.03); }
+  .set:active { transform: scale(0.99); }
+  .set .check {
+    flex: 0 0 18px; width: 18px; height: 18px; border-radius: 5px;
+    border: 1.5px solid #3a2f6a; margin-top: 2px;
+    display: flex; align-items: center; justify-content: center;
+    color: #07060d; font-weight: 900; font-size: 13px; line-height: 1;
+  }
+  .set.picked .check {
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border-color: transparent;
+  }
+  .set.picked .check::after { content: "✓"; }
+  .set .body { flex: 1 1 auto; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .set .artist { font-weight: 700; font-size: 15px; line-height: 1.25; word-break: break-word; }
+  .set .time { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+  .set.picked { background: rgba(196, 168, 255, 0.08); }
+  .set.now { box-shadow: inset 0 0 0 1px rgba(196,168,255,0.25); }
+  .set.now .time::after { content: " • LIVE"; color: var(--accent); font-weight: 700; }
+  .empty { color: var(--muted); padding: 24px; text-align: center; }
+  kbd { background: #1a1530; border: 1px solid var(--line); border-radius: 6px; padding: 2px 6px; font-size: 11px; color: var(--muted); }
+  footer { color: var(--muted); font-size: 12px; padding: 16px clamp(16px, 4vw, 48px) 32px; }
+
+  /* Floating itinerary button */
+  .fab {
+    position: fixed; right: 24px; bottom: 24px; z-index: 5;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    color: #14102a; font-weight: 800; letter-spacing: 0.04em;
+    border: none; border-radius: 999px;
+    padding: 14px 18px; cursor: pointer;
+    box-shadow: 0 12px 32px rgba(196, 168, 255, 0.25), 0 2px 8px rgba(0,0,0,0.3);
+    display: inline-flex; align-items: center; gap: 10px;
+  }
+  .fab .count {
+    background: #14102a; color: var(--accent);
+    border-radius: 999px; padding: 2px 8px; font-size: 12px;
+    min-width: 22px; text-align: center;
+  }
+
+  /* Modal */
+  .modal-backdrop {
+    position: fixed; inset: 0; background: rgba(4,2,12,0.7);
+    backdrop-filter: blur(6px); z-index: 10;
+    display: none; align-items: center; justify-content: center; padding: 24px;
+  }
+  .modal-backdrop.open { display: flex; }
+  .modal {
+    background: linear-gradient(180deg, #14102a, #0c0820);
+    border: 1px solid var(--line); border-radius: 18px;
+    width: min(720px, 100%); max-height: 84vh; overflow: hidden;
+    display: flex; flex-direction: column;
+  }
+  .modal header {
+    padding: 18px 22px; border-bottom: 1px solid var(--line);
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  }
+  .modal h2 { margin: 0; font-size: 18px; letter-spacing: 0.04em; }
+  .modal .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+  .modal button {
+    background: var(--chip); color: var(--ink); border: 1px solid var(--line);
+    padding: 9px 14px; border-radius: 999px; cursor: pointer; font-weight: 600; font-size: 13px;
+  }
+  .modal button.primary {
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    color: #14102a; border-color: transparent;
+  }
+  .modal button.danger { color: #ff9a9a; }
+  .modal .body { padding: 16px 22px 22px; overflow: auto; }
+  .day-block { margin-bottom: 18px; }
+  .day-block h3 {
+    margin: 0 0 8px 0; font-size: 12px; letter-spacing: 0.22em;
+    color: var(--accent); text-transform: uppercase;
+  }
+  .pick-row {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding: 10px 12px; border-radius: 10px;
+    background: rgba(255,255,255,0.03); margin-bottom: 6px;
+    border: 1px solid transparent;
+  }
+  .pick-row.conflict-full {
+    background: rgba(255, 110, 110, 0.08);
+    border-color: rgba(255, 110, 110, 0.35);
+  }
+  .pick-row.conflict-partial {
+    background: rgba(255, 210, 110, 0.07);
+    border-color: rgba(255, 210, 110, 0.35);
+  }
+  .pick-row .meta { font-size: 12px; color: var(--muted); }
+  .pick-row .conflict-note {
+    font-size: 11px; margin-top: 4px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .pick-row.conflict-full .conflict-note { color: #ff9a9a; }
+  .pick-row.conflict-partial .conflict-note { color: #ffd28a; }
+  .pick-row .conflict-note::before {
+    content: "⚠"; font-size: 12px;
+  }
+  .pick-row .remove {
+    background: transparent; border: none; color: var(--muted); cursor: pointer; font-size: 18px;
+    padding: 2px 6px;
+  }
+  .pick-row .remove:hover { color: #ff9a9a; }
+  .conflict-summary {
+    display: inline-flex; align-items: center; gap: 6px;
+    margin-left: 8px; padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 11px; font-weight: 700;
+  }
+  .conflict-summary.full {
+    background: rgba(255, 110, 110, 0.15);
+    border: 1px solid rgba(255, 110, 110, 0.35);
+    color: #ff9a9a;
+  }
+  .conflict-summary.partial {
+    background: rgba(255, 210, 110, 0.12);
+    border: 1px solid rgba(255, 210, 110, 0.35);
+    color: #ffd28a;
+  }
+  .modal .empty { padding: 32px 16px; text-align: center; color: var(--muted); }
+</style>
+</head>
+<body>
+<header>
+  <div class="title">
+    <small>Lightning In A Bottle 2026</small>
+    <h1 id="dateHeading">—</h1>
+  </div>
+  <div class="nav">
+    <button id="prev" aria-label="Previous date">◀ Prev</button>
+    <div class="date-chip" id="dateChip">—</div>
+    <button id="next" aria-label="Next date">Next ▶</button>
+    <div class="dots" id="dots"></div>
+  </div>
+</header>
+
+<main>
+  <div class="stages" id="stages"></div>
+</main>
+
+<footer>
+  <span>Tap a set to add it to your itinerary. Use <kbd>←</kbd> / <kbd>→</kbd> to cycle dates.</span>
+</footer>
+
+<button class="fab" id="openItin" aria-label="Open itinerary">
+  My Itinerary <span class="count" id="itinCount">0</span>
+</button>
+
+<div class="modal-backdrop" id="modal">
+  <div class="modal" role="dialog" aria-labelledby="itinTitle">
+    <header>
+      <h2 id="itinTitle">My Itinerary</h2>
+      <div class="actions">
+        <button id="sharePng" class="primary">Share PNG</button>
+        <button id="clearAll" class="danger">Clear</button>
+        <button id="closeModal">Close</button>
+      </div>
+    </header>
+    <div class="body" id="itinBody"></div>
+  </div>
+</div>
+
+<script>
+let DATA = null;
+let idx = 0;
+const STORE_KEY = 'lib2026.itinerary.v1';
+let picks = new Set(JSON.parse(localStorage.getItem(STORE_KEY) || '[]'));
+
+function setKey(s) { return `${s.start}__${s.stage}__${s.artist}`; }
+
+function savePicks() {
+  localStorage.setItem(STORE_KEY, JSON.stringify([...picks]));
+  document.getElementById('itinCount').textContent = picks.size;
+}
+
+async function load() {
+  try {
+    const res = await fetch('schedule.json');
+    DATA = await res.json();
+  } catch (e) {
+    document.getElementById('stages').innerHTML =
+      '<div class="empty">Could not load schedule.json — open this page through a local server (e.g. <code>python3 -m http.server</code>).</div>';
+    return;
+  }
+  const today = new Date().toISOString().slice(0, 10);
+  const todayIdx = DATA.dates.findIndex(d => d.date === today);
+  idx = todayIdx >= 0 ? todayIdx : 0;
+  savePicks();
+  render();
+}
+
+function fmtTime(iso) {
+  const d = new Date(iso);
+  let h = d.getHours();
+  const m = d.getMinutes();
+  const ap = h >= 12 ? 'p' : 'a';
+  h = h % 12; if (h === 0) h = 12;
+  return `${h}:${m.toString().padStart(2,'0')}${ap}`;
+}
+
+function render() {
+  const day = DATA.dates[idx];
+  document.getElementById('dateHeading').textContent = day.label;
+  document.getElementById('dateChip').textContent = day.label;
+
+  const dots = document.getElementById('dots');
+  dots.innerHTML = '';
+  DATA.dates.forEach((_, i) => {
+    const el = document.createElement('div');
+    el.className = 'dot' + (i === idx ? ' active' : '');
+    dots.appendChild(el);
+  });
+
+  const stageOrder = [];
+  const byStage = new Map();
+  for (const s of day.sets) {
+    if (!byStage.has(s.stage)) {
+      byStage.set(s.stage, []);
+      stageOrder.push(s.stage);
+    }
+    byStage.get(s.stage).push(s);
+  }
+  for (const arr of byStage.values()) {
+    arr.sort((a, b) => new Date(a.start) - new Date(b.start));
+  }
+
+  const now = new Date();
+  const stages = document.getElementById('stages');
+  stages.innerHTML = '';
+  for (const stageName of stageOrder) {
+    const col = document.createElement('section');
+    col.className = 'stage';
+    const h = document.createElement('h2');
+    h.textContent = stageName;
+    col.appendChild(h);
+
+    for (const s of byStage.get(stageName)) {
+      const start = new Date(s.start);
+      const end = new Date(s.end);
+      const live = now >= start && now < end;
+      const k = setKey(s);
+      const picked = picks.has(k);
+      const row = document.createElement('div');
+      row.className = 'set' + (live ? ' now' : '') + (picked ? ' picked' : '');
+      row.dataset.key = k;
+
+      const check = document.createElement('div');
+      check.className = 'check';
+      row.appendChild(check);
+
+      const body = document.createElement('div');
+      body.className = 'body';
+      const a = document.createElement('div');
+      a.className = 'artist';
+      a.textContent = s.artist;
+      const t = document.createElement('div');
+      t.className = 'time';
+      t.textContent = `${fmtTime(s.start)} – ${fmtTime(s.end)}`;
+      body.appendChild(a);
+      body.appendChild(t);
+      row.appendChild(body);
+
+      row.addEventListener('click', () => togglePick(s, row));
+      col.appendChild(row);
+    }
+    stages.appendChild(col);
+  }
+}
+
+function togglePick(s, row) {
+  const k = setKey(s);
+  if (picks.has(k)) { picks.delete(k); row.classList.remove('picked'); }
+  else { picks.add(k); row.classList.add('picked'); }
+  savePicks();
+}
+
+function move(delta) {
+  if (!DATA) return;
+  idx = (idx + delta + DATA.dates.length) % DATA.dates.length;
+  render();
+}
+
+document.getElementById('prev').addEventListener('click', () => move(-1));
+document.getElementById('next').addEventListener('click', () => move(1));
+document.addEventListener('keydown', (e) => {
+  if (document.getElementById('modal').classList.contains('open')) return;
+  if (e.key === 'ArrowLeft') move(-1);
+  if (e.key === 'ArrowRight') move(1);
+});
+
+// ---------- Itinerary modal ----------
+function collectPickedSets() {
+  const groups = []; // [{date, label, sets:[...]}]
+  for (const day of DATA.dates) {
+    const chosen = day.sets
+      .filter(s => picks.has(setKey(s)))
+      .sort((a, b) => new Date(a.start) - new Date(b.start));
+    if (chosen.length) groups.push({ date: day.date, label: day.label, sets: chosen });
+  }
+  return groups;
+}
+
+function renderItinModal() {
+  const body = document.getElementById('itinBody');
+  body.innerHTML = '';
+  const groups = collectPickedSets();
+  if (!groups.length) {
+    body.innerHTML = '<div class="empty">No sets picked yet. Tap any set in the schedule to add it.</div>';
+    return;
+  }
+  for (const g of groups) {
+    const block = document.createElement('div');
+    block.className = 'day-block';
+
+    // detect conflicts within this day: classify each pick as full / partial / none
+    // "full" = some other picked set entirely covers this set's window (you'd miss all of it)
+    // "partial" = overlap exists but no other set fully covers it
+    const conflictInfo = g.sets.map(s => {
+      const sStart = new Date(s.start), sEnd = new Date(s.end);
+      const overlapping = g.sets.filter(o => {
+        if (o === s) return false;
+        return new Date(o.start) < sEnd && sStart < new Date(o.end);
+      });
+      const fullyCovered = overlapping.some(o =>
+        new Date(o.start) <= sStart && new Date(o.end) >= sEnd
+      );
+      return {
+        kind: !overlapping.length ? 'none' : (fullyCovered ? 'full' : 'partial'),
+        names: overlapping.map(o => o.artist),
+      };
+    });
+    const fullCount = conflictInfo.filter(c => c.kind === 'full').length;
+    const partialCount = conflictInfo.filter(c => c.kind === 'partial').length;
+
+    const h = document.createElement('h3');
+    h.textContent = g.label;
+    if (fullCount) {
+      const tag = document.createElement('span');
+      tag.className = 'conflict-summary full';
+      tag.textContent = `${fullCount} full`;
+      h.appendChild(tag);
+    }
+    if (partialCount) {
+      const tag = document.createElement('span');
+      tag.className = 'conflict-summary partial';
+      tag.textContent = `${partialCount} partial`;
+      h.appendChild(tag);
+    }
+    block.appendChild(h);
+
+    g.sets.forEach((s, i) => {
+      const info = conflictInfo[i];
+      const row = document.createElement('div');
+      const cls = info.kind === 'full' ? ' conflict-full'
+              : info.kind === 'partial' ? ' conflict-partial' : '';
+      row.className = 'pick-row' + cls;
+      const left = document.createElement('div');
+      const a = document.createElement('div');
+      a.style.fontWeight = '700';
+      a.textContent = s.artist;
+      const meta = document.createElement('div');
+      meta.className = 'meta';
+      meta.textContent = `${fmtTime(s.start)} – ${fmtTime(s.end)} · ${s.stage}`;
+      left.appendChild(a); left.appendChild(meta);
+      if (info.names.length) {
+        const note = document.createElement('div');
+        note.className = 'conflict-note';
+        note.textContent = `overlaps with ${info.names.join(', ')}`;
+        left.appendChild(note);
+      }
+      const rm = document.createElement('button');
+      rm.className = 'remove'; rm.textContent = '×'; rm.title = 'Remove';
+      rm.addEventListener('click', () => {
+        picks.delete(setKey(s));
+        savePicks();
+        renderItinModal();
+        render();
+      });
+      row.appendChild(left); row.appendChild(rm);
+      block.appendChild(row);
+    });
+    body.appendChild(block);
+  }
+}
+
+document.getElementById('openItin').addEventListener('click', () => {
+  renderItinModal();
+  document.getElementById('modal').classList.add('open');
+});
+document.getElementById('closeModal').addEventListener('click', () => {
+  document.getElementById('modal').classList.remove('open');
+});
+document.getElementById('modal').addEventListener('click', (e) => {
+  if (e.target.id === 'modal') document.getElementById('modal').classList.remove('open');
+});
+document.getElementById('clearAll').addEventListener('click', () => {
+  if (!picks.size) return;
+  if (!confirm('Clear all picked sets?')) return;
+  picks.clear();
+  savePicks();
+  renderItinModal();
+  render();
+});
+document.getElementById('sharePng').addEventListener('click', sharePng);
+
+// ---------- PNG generation ----------
+function sharePng() {
+  const groups = collectPickedSets();
+  if (!groups.length) { alert('Pick some sets first!'); return; }
+
+  const DPR = 2;
+  const W = 1080;
+  const PAD = 64;
+
+  function roundRect(ctx, x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+
+  // shared measuring ctx
+  const measureCanvas = document.createElement('canvas');
+  const ctxM = measureCanvas.getContext('2d');
+  function setFontOn(c, weight, size) {
+    c.font = `${weight} ${size}px ui-sans-serif, system-ui, -apple-system, "Helvetica Neue", Arial`;
+  }
+  function wrap(text, maxW, size, weight) {
+    setFontOn(ctxM, weight, size);
+    const words = String(text).split(/\s+/);
+    const lines = [];
+    let cur = '';
+    for (const w of words) {
+      const test = cur ? cur + ' ' + w : w;
+      if (ctxM.measureText(test).width <= maxW) cur = test;
+      else { if (cur) lines.push(cur); cur = w; }
+    }
+    if (cur) lines.push(cur);
+    return lines;
+  }
+
+  // --- layout constants ---
+  const HEADER_H = 200;
+  const DAY_HEAD_H = 60;
+  const ROW_GAP = 14;
+  const ROW_PAD_Y = 18;
+  const TIME_COL_W = 170;
+  const TEXT_GAP = 22;
+  const ARTIST_SIZE = 26;
+  const ARTIST_LH = 32;
+  const STAGE_SIZE = 14;
+  const STAGE_LH = 20;
+  const TEXT_W = W - PAD * 2 - TIME_COL_W - TEXT_GAP;
+  const GROUP_GAP = 28;
+  const FOOTER_H = 70;
+
+  // pre-compute heights per set
+  function setHeight(s) {
+    const lines = wrap(s.artist, TEXT_W, ARTIST_SIZE, 800);
+    return ROW_PAD_Y * 2 + lines.length * ARTIST_LH + 4 + STAGE_LH;
+  }
+
+  // total content height
+  let contentH = 0;
+  for (const g of groups) {
+    contentH += DAY_HEAD_H;
+    for (const s of g.sets) contentH += setHeight(s) + ROW_GAP;
+    contentH -= ROW_GAP; // no trailing gap
+    contentH += GROUP_GAP;
+  }
+  contentH -= GROUP_GAP;
+
+  const H = HEADER_H + contentH + FOOTER_H + PAD;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = W * DPR;
+  canvas.height = H * DPR;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(DPR, DPR);
+  ctx.textBaseline = 'alphabetic';
+
+  // background
+  const bgGrad = ctx.createLinearGradient(0, 0, W, H);
+  bgGrad.addColorStop(0, '#0a0820');
+  bgGrad.addColorStop(1, '#1b0d2e');
+  ctx.fillStyle = bgGrad;
+  ctx.fillRect(0, 0, W, H);
+
+  function blob(x, y, r, color) {
+    const grd = ctx.createRadialGradient(x, y, 0, x, y, r);
+    grd.addColorStop(0, color);
+    grd.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = grd;
+    ctx.fillRect(0, 0, W, H);
+  }
+  blob(160, 120, 560, 'rgba(120,80,200,0.35)');
+  blob(W - 80, H - 200, 640, 'rgba(255,154,209,0.18)');
+
+  // starfield
+  ctx.fillStyle = 'rgba(255,255,255,0.9)';
+  let seed = 1337;
+  function rand() { seed = (seed * 9301 + 49297) % 233280; return seed / 233280; }
+  for (let i = 0; i < 260; i++) {
+    const x = rand() * W, y = rand() * H, r = rand() * 1.2 + 0.2;
+    ctx.globalAlpha = 0.25 + rand() * 0.6;
+    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+
+  // header
+  setFontOn(ctx, 600, 13);
+  ctx.fillStyle = '#c4a8ff';
+  ctx.fillText('LIGHTNING  IN  A  BOTTLE  ·  2026', PAD, PAD + 8);
+
+  setFontOn(ctx, 800, 56);
+  ctx.fillStyle = '#efe7ff';
+  ctx.fillText('My Itinerary', PAD, PAD + 72);
+
+  const totalSets = groups.reduce((a, g) => a + g.sets.length, 0);
+  setFontOn(ctx, 500, 16);
+  ctx.fillStyle = '#8b87a8';
+  ctx.fillText(`${totalSets} set${totalSets === 1 ? '' : 's'} across ${groups.length} day${groups.length === 1 ? '' : 's'}`, PAD, PAD + 102);
+
+  ctx.strokeStyle = 'rgba(196,168,255,0.2)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(PAD, HEADER_H - 16);
+  ctx.lineTo(W - PAD, HEADER_H - 16);
+  ctx.stroke();
+
+  // body
+  let y = HEADER_H;
+  for (let gi = 0; gi < groups.length; gi++) {
+    const g = groups[gi];
+
+    // day header
+    setFontOn(ctx, 800, 18);
+    ctx.fillStyle = '#ff9ad1';
+    ctx.fillText(g.label.toUpperCase(), PAD, y + 22);
+    ctx.strokeStyle = 'rgba(255,154,209,0.35)';
+    ctx.beginPath();
+    ctx.moveTo(PAD, y + 38);
+    ctx.lineTo(W - PAD, y + 38);
+    ctx.stroke();
+    y += DAY_HEAD_H;
+
+    for (let si = 0; si < g.sets.length; si++) {
+      const s = g.sets[si];
+      const lines = wrap(s.artist, TEXT_W, ARTIST_SIZE, 800);
+      const rowH = setHeight(s);
+
+      // row container
+      ctx.fillStyle = 'rgba(255,255,255,0.035)';
+      roundRect(ctx, PAD, y, W - PAD * 2, rowH, 14);
+      ctx.fill();
+
+      // time pill (left col)
+      const time = `${fmtTime(s.start)} – ${fmtTime(s.end)}`;
+      setFontOn(ctx, 800, 14);
+      const tWidth = Math.min(TIME_COL_W - 12, ctx.measureText(time).width + 22);
+      const tX = PAD + 16;
+      const tY = y + ROW_PAD_Y + 2;
+      ctx.fillStyle = 'rgba(196,168,255,0.16)';
+      roundRect(ctx, tX, tY, tWidth, 26, 13);
+      ctx.fill();
+      ctx.fillStyle = '#c4a8ff';
+      ctx.fillText(time, tX + 11, tY + 17);
+
+      // artist + stage (right col)
+      const aX = PAD + 16 + TIME_COL_W + TEXT_GAP - 16;
+      let aY = y + ROW_PAD_Y + ARTIST_SIZE; // baseline of first line
+      setFontOn(ctx, 800, ARTIST_SIZE);
+      ctx.fillStyle = '#efe7ff';
+      for (const line of lines) {
+        ctx.fillText(line, aX, aY);
+        aY += ARTIST_LH;
+      }
+
+      setFontOn(ctx, 600, STAGE_SIZE);
+      ctx.fillStyle = '#8b87a8';
+      ctx.fillText(s.stage, aX, aY + 2);
+
+      y += rowH + ROW_GAP;
+    }
+    y -= ROW_GAP; // trim last
+    y += GROUP_GAP;
+  }
+
+  // footer
+  setFontOn(ctx, 500, 13);
+  ctx.fillStyle = '#8b87a8';
+  ctx.fillText('lib 2026 schedule · built with claude', PAD, H - PAD + 8);
+
+  canvas.toBlob((blob) => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `lib2026-itinerary-${new Date().toISOString().slice(0,10)}.png`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+
+    // Also try Web Share API if available (mobile)
+    if (navigator.canShare) {
+      const file = new File([blob], 'lib2026-itinerary.png', { type: 'image/png' });
+      if (navigator.canShare({ files: [file] })) {
+        navigator.share({ files: [file], title: 'My LIB 2026 Itinerary' }).catch(() => {});
+      }
+    }
+  }, 'image/png');
+}
+
+load();
+</script>
+</body>
+</html>
